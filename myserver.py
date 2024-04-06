@@ -14,6 +14,7 @@ from pynput import keyboard
 app = Flask(__name__)
 
 is_recording = False
+is_shortcut = False
 fs = 16000  # sampling rate
 channels = 2
 duration = 60  # max duration
@@ -49,11 +50,25 @@ def clear_queue(q):
 
 def on_press(key):
     global stop_queue
+    global is_recording
+    global is_shortcut
     if key == keyboard.Key.space:
-        stop_queue.put(True)
+        if is_recording:
+            stop_queue.put(True)
+    if hasattr(key, "char") and key.char == "`":
+        if is_shortcut:
+            with open("cmd.sh") as f:
+                safe_script = f.read()
+            subprocess.Popen(["gnome-terminal", "--", "bash", "-c", safe_script])
+            print(is_shortcut, "Run shortcut")
+    if hasattr(key, "char") and key.char == "~":
+        if is_shortcut:
+            is_shortcut = False
+            print(is_shortcut, "Turn off shortcut")
 
 
 listener = keyboard.Listener(on_press=on_press)
+listener.start()
 
 
 def callback(indata, frames, time, status):
@@ -66,7 +81,6 @@ def start_recording():
     global is_recording, recording, stop_queue, recording
     stop_queue = clear_queue(stop_queue)
     is_recording = True
-    listener.start()
     play_wav("please_ailab.wav")
     recording = []
     print("Recording ...")
@@ -114,6 +128,24 @@ def trigger_recording():
         return jsonify({"status": "Recording started"}), 200
     else:
         return jsonify({"status": "Already recording"}), 200
+
+
+@app.route("/shortcut", methods=["GET", "POST"])
+def shortcut():
+    global is_shortcut
+    os.system("gedit cmd.sh")
+    play_wav("shortcut.wav")
+    is_shortcut = True
+    with open("cmd.sh") as f:
+        safe_script = f.read()
+
+    try:
+        return (
+            jsonify({"final script": safe_script}),
+            200,
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/execute_bash_script", methods=["POST"])
