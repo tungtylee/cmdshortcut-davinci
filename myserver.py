@@ -2,6 +2,7 @@ import os
 import queue
 from threading import Thread
 
+import numpy as np
 import simpleaudio as sa
 import sounddevice as sd
 import soundfile as sf
@@ -11,9 +12,11 @@ from pynput import keyboard
 app = Flask(__name__)
 
 is_recording = False
-recording = None
 fs = 16000  # sampling rate
+channels = 2
 duration = 60  # max duration
+recording = []
+
 WHISPER_M = "./whisper.cpp/main -m ./whisper.cpp/models/ggml-large-v2.bin"
 WHISPER_F = " -f recording.wav -otxt recording.txt"
 WHISPER_CMD = WHISPER_M + WHISPER_F
@@ -53,22 +56,32 @@ listener = keyboard.Listener(on_press=on_press)
 listener.start()
 
 
+def callback(indata, frames, time, status):
+    # put audio data
+    global recording
+    recording.extend(indata.copy())
+
+
 def start_recording():
-    global is_recording, recording, stop_queue
-    # stop_queue = clear_queue(stop_queue)
+    global is_recording, recording, stop_queue, recording
+    stop_queue = clear_queue(stop_queue)
     is_recording = True
     play_wav("please_ailab.wav")
-
+    recording = []
     print("Recording ...")
-    recording = sd.rec(int(duration * fs), samplerate=fs, channels=2, dtype="int16")
-    try:
-        stop_queue.get(timeout=duration)  # wait key
-    except queue.Empty:
-        # max duration
-        pass
-    finally:
-        print("Recording stopped.")
-        stop_recording_and_save()
+    # recording = sd.rec(int(duration * fs), samplerate=fs, channels=2, dtype="int16")
+    with sd.InputStream(
+        callback=callback, samplerate=fs, channels=channels, dtype="int16"
+    ):
+        # sd.sleep(duration * 1000)  # 等待最大录音时长或直到录音被提前停止
+        try:
+            stop_queue.get(timeout=duration)  # wait key
+        except queue.Empty:
+            # max duration
+            pass
+        finally:
+            print("Recording stopped.")
+            stop_recording_and_save()
 
 
 def stop_recording_and_save():
@@ -78,7 +91,8 @@ def stop_recording_and_save():
         sd.stop()
         # save
         filename = "recording.wav"
-        sf.write(filename, recording, fs, subtype="PCM_16")
+        np_recording = np.array(recording, dtype=np.int16)
+        sf.write(filename, np_recording, fs)
         print(f"Save to {filename}.")
         play_wav("ok_ailab.wav")
         exec_whisper()
@@ -99,12 +113,6 @@ def trigger_recording():
         return jsonify({"status": "Recording started"}), 200
     else:
         return jsonify({"status": "Already recording"}), 200
-
-
-@app.route("/stop_recording", methods=["GET", "POST"])
-def handle_stop():
-    stop_recording_and_save()
-    return jsonify({"status": "Recording stopped and saved"}), 200
 
 
 if __name__ == "__main__":
