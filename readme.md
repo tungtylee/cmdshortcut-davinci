@@ -1,4 +1,4 @@
-# Develop a command short plugin for DaVinci Platform 
+# Develop a command shortcut plugin for DaVinci Platform 
 
 ## Usage
 
@@ -8,15 +8,29 @@
 python myserver.py
 ```
 
-* Record and ASE
+* Record and ASR
 
-```
-# browse http://127.0.0.1:5000/start_recording
+```text
+# get/post http://127.0.0.1:5000/start_recording
 # press space to stop recording
-```
 
+# post http://127.0.0.1:5000/execute_bash_script
+# pass json object obj["bash"]
+```
 
 ## Installation
+
+### Prepare voice hint files (optional)
+
+I use some TTS for generating voice hint files.
+Please prepare your wave files, if you need voice hint.
+
+* please.wav: 按空白停止錄音，請說
+* execute_bash_script.wav: 執行達哥指令
+* ok.wav: 好的
+* shortcut.wav: 已註冊快捷鍵
+
+### Prepare python environment
 
 * conda environment and development
 

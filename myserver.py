@@ -1,12 +1,14 @@
 import os
 import queue
+import shlex
+import subprocess
 from threading import Thread
 
 import numpy as np
 import simpleaudio as sa
 import sounddevice as sd
 import soundfile as sf
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from pynput import keyboard
 
 app = Flask(__name__)
@@ -49,11 +51,9 @@ def on_press(key):
     global stop_queue
     if key == keyboard.Key.space:
         stop_queue.put(True)
-        print("put True")
 
 
 listener = keyboard.Listener(on_press=on_press)
-listener.start()
 
 
 def callback(indata, frames, time, status):
@@ -66,6 +66,7 @@ def start_recording():
     global is_recording, recording, stop_queue, recording
     stop_queue = clear_queue(stop_queue)
     is_recording = True
+    listener.start()
     play_wav("please_ailab.wav")
     recording = []
     print("Recording ...")
@@ -113,6 +114,37 @@ def trigger_recording():
         return jsonify({"status": "Recording started"}), 200
     else:
         return jsonify({"status": "Already recording"}), 200
+
+
+@app.route("/execute_bash_script", methods=["POST"])
+def execute_bash_script():
+    play_wav("execute_bash_script.wav")
+    data = request.get_json()
+    bash_script = data.get("bash")
+
+    with open("cmd_head.sh") as f:
+        bash_head = f.read()
+    with open("cmd.sh", "w") as f:
+        f.write(bash_head + bash_script + "\n")
+    os.system("gedit cmd.sh")
+
+    with open("cmd.sh") as f:
+        safe_script = f.read()
+
+    if not bash_script:
+        return jsonify({"error": "No bash script provided"}), 400
+    try:
+        # create safe script and block bash
+        # create a new terminal window
+        subprocess.Popen(["gnome-terminal", "--", "bash", "-c", safe_script])
+        return (
+            jsonify(
+                {"message": "Bash script is being executed in a new terminal window."}
+            ),
+            200,
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":
