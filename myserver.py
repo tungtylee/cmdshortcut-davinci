@@ -2,6 +2,7 @@ import os
 import queue
 from threading import Thread
 
+import simpleaudio as sa
 import sounddevice as sd
 import soundfile as sf
 from flask import Flask, jsonify
@@ -21,18 +22,31 @@ WHISPER_CMD = WHISPER_M + WHISPER_F
 stop_queue = queue.Queue(maxsize=1)
 
 
+def play_wav(file_path):
+    try:
+        wave_obj = sa.WaveObject.from_wave_file(file_path)
+        play_obj = wave_obj.play()
+        play_obj.wait_done()
+    except FileNotFoundError:
+        print(f"File missing {file_path}")
+    except Exception as e:
+        print(f"Error playing file: {e}")
+
+
 def clear_queue(q):
     while not q.empty():
         try:
             q.get_nowait()
         except queue.Empty:
             break
+    return q
 
 
 def on_press(key):
     global stop_queue
     if key == keyboard.Key.space:
         stop_queue.put(True)
+        print("put True")
 
 
 listener = keyboard.Listener(on_press=on_press)
@@ -41,18 +55,19 @@ listener.start()
 
 def start_recording():
     global is_recording, recording, stop_queue
-    clear_queue(stop_queue)
+    # stop_queue = clear_queue(stop_queue)
     is_recording = True
-    recording = sd.rec(int(duration * fs), samplerate=fs, channels=2, dtype="int16")
-    print("Recording after beep ...")
+    play_wav("please_ailab.wav")
 
+    print("Recording ...")
+    recording = sd.rec(int(duration * fs), samplerate=fs, channels=2, dtype="int16")
     try:
         stop_queue.get(timeout=duration)  # wait key
     except queue.Empty:
         # max duration
         pass
     finally:
-        print("Recording st opped.")
+        print("Recording stopped.")
         stop_recording_and_save()
 
 
@@ -65,6 +80,7 @@ def stop_recording_and_save():
         filename = "recording.wav"
         sf.write(filename, recording, fs, subtype="PCM_16")
         print(f"Save to {filename}.")
+        play_wav("ok_ailab.wav")
         exec_whisper()
     else:
         print("No recording in progress")

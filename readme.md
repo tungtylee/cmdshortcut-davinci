@@ -35,6 +35,7 @@ pip install sounddevice --force-reinstall
 pip install soundfile
 # ImportError: NumPy must be installed for play()/rec()/playrec
 pip install numpy
+pip install simpleaudio
 ```
 
 ## Whisper Installation
