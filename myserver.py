@@ -131,9 +131,9 @@ def trigger_recording():
         start_recording()
         with open("recording.wav.txt") as f:
             questions = f.read()
-        return jsonify({"questions": questions}), 200
+        return jsonify({"commands": questions}), 200
     else:
-        return jsonify({"questions": "Already recording, please retry"}), 200
+        return jsonify({"commands": "Already recording, please retry"}), 200
 
 
 @app.route("/shortcut", methods=["GET", "POST"])
