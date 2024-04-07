@@ -50,6 +50,7 @@ pip install soundfile
 # ImportError: NumPy must be installed for play()/rec()/playrec
 pip install numpy
 pip install simpleaudio
+pip install -U flask-cors
 ```
 
 ## Whisper Installation

@@ -9,9 +9,11 @@ import simpleaudio as sa
 import sounddevice as sd
 import soundfile as sf
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 from pynput import keyboard
 
 app = Flask(__name__)
+CORS(app)
 
 is_recording = False
 is_shortcut = False
@@ -81,14 +83,14 @@ def start_recording():
     global is_recording, recording, stop_queue, recording
     stop_queue = clear_queue(stop_queue)
     is_recording = True
-    play_wav("please_ailab.wav")
+    play_wav("please.wav")
+    print("按空白停止錄音，請說")
     recording = []
     print("Recording ...")
     # recording = sd.rec(int(duration * fs), samplerate=fs, channels=2, dtype="int16")
     with sd.InputStream(
         callback=callback, samplerate=fs, channels=channels, dtype="int16"
     ):
-        # sd.sleep(duration * 1000)  # 等待最大录音时长或直到录音被提前停止
         try:
             stop_queue.get(timeout=duration)  # wait key
         except queue.Empty:
@@ -109,7 +111,8 @@ def stop_recording_and_save():
         np_recording = np.array(recording, dtype=np.int16)
         sf.write(filename, np_recording, fs)
         print(f"Save to {filename}.")
-        play_wav("ok_ailab.wav")
+        play_wav("ok.wav")
+        print("好的")
         exec_whisper()
     else:
         print("No recording in progress")
@@ -118,16 +121,19 @@ def stop_recording_and_save():
 def exec_whisper():
     print(WHISPER_CMD)
     os.system(WHISPER_CMD)
-    os.system("gedit recording.wav.txt")
+    # os.system("gedit recording.wav.txt")
 
 
 @app.route("/start_recording", methods=["GET", "POST"])
 def trigger_recording():
     if not is_recording:
-        Thread(target=start_recording).start()
-        return jsonify({"status": "Recording started"}), 200
+        # Thread(target=start_recording).start()
+        start_recording()
+        with open("recording.wav.txt") as f:
+            questions = f.read()
+        return jsonify({"questions": questions}), 200
     else:
-        return jsonify({"status": "Already recording"}), 200
+        return jsonify({"questions": "Already recording, please retry"}), 200
 
 
 @app.route("/shortcut", methods=["GET", "POST"])
@@ -135,6 +141,7 @@ def shortcut():
     global is_shortcut
     os.system("gedit cmd.sh")
     play_wav("shortcut.wav")
+    print("已註冊快捷鍵")
     is_shortcut = True
     with open("cmd.sh") as f:
         safe_script = f.read()
@@ -151,8 +158,9 @@ def shortcut():
 @app.route("/execute_bash_script", methods=["POST"])
 def execute_bash_script():
     play_wav("execute_bash_script.wav")
+    print("執行達哥指令")
     data = request.get_json()
-    bash_script = data.get("bash")
+    bash_script = data.get("task")
 
     with open("cmd_head.sh") as f:
         bash_head = f.read()
