@@ -1,5 +1,10 @@
 # Develop a command shortcut plugin for DaVinci Platform 
 
+## Minimal Demo
+
+[![Watch the video](demo.png)](demo.mp4)
+
+
 ## Usage
 
 * Start local server
